@@ -9,6 +9,8 @@ Flo and Stardust both are vulnerable to warrants and subpoenas by federal govern
 
 Period tracking data can act as the starting piece of evidence that prompts authorities to demand warrants for license plate reader data, location histories, and decrypted personal text messages and e-mails.
 
+<img width="1920" height="1080" alt="wolf" src="https://github.com/user-attachments/assets/d768ce51-5571-42a8-b93a-cedd7f44685b" />
+
 ## this project
 Wolf (Flow backwards... creative, I know) is an open-source alternative to creepy, money-hungry apps that sell your menstrual data to shady brokers. It's a single static HTML file with zero dependencies, zero backend, and no account. Your data is stored in your browser and can be downloaded locally as plain text. 
 
