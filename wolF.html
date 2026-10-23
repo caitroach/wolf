@@ -1,0 +1,588 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Local Cycle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..700&display=swap">
+<style>
+/* Layout: big plain-language status on top, calendar beside a day editor, then stats, history and the data/backup card. */
+:root {
+  --bg: #f4f4f9;
+  --surface: #ffffff;
+  --cell: #f0eff8;
+  --fg: #1e1c2f;
+  --muted: #666380;
+  --line: #dcdbe8;
+  --accent: #c2255c;
+  --accent-soft: #fbe3ec;
+  --accent-ink: #ffffff;
+  --info: #3b5bdb;
+  --ok: #2b8a3e;
+  --warn: #b54708;
+  --danger: #b42318;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14131d; --surface: #1d1c2a; --cell: #272639; --fg: #ecebf5; --muted: #a09db8;
+    --line: #36344d; --accent: #f06595; --accent-soft: #3a1d2b; --accent-ink: #1a0b12;
+    --info: #91a7ff; --ok: #69db7c; --warn: #ffa94d; --danger: #ff8a7a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14131d; --surface: #1d1c2a; --cell: #272639; --fg: #ecebf5; --muted: #a09db8;
+  --line: #36344d; --accent: #f06595; --accent-soft: #3a1d2b; --accent-ink: #1a0b12;
+  --info: #91a7ff; --ok: #69db7c; --warn: #ffa94d; --danger: #ff8a7a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+button, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.brand { font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; }
+.brand small { display: block; font-family: var(--body); font-weight: 400; font-size: .85rem; color: var(--muted); letter-spacing: 0; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+.pill.bad i { background: var(--warn); }
+
+/* hero */
+.hero { padding: 8px 0 4px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.hero h2 { font-size: clamp(1.9rem, 6.5vw, 3.1rem); line-height: 1.04; font-weight: 700; letter-spacing: -0.025em; }
+.hero h2 .num { color: var(--accent); }
+.hero p { margin: 0; color: var(--muted); max-width: 52ch; }
+
+/* buttons */
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 500; min-height: 40px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.danger.armed { background: var(--danger); border-color: var(--danger); color: var(--surface); }
+.btn.armed:not(.danger) { border-color: var(--fg); }
+
+/* layout */
+.main { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 780px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
+.card h3 { font-size: 1.1rem; margin-bottom: 12px; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+/* calendar */
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.cal-head h3 { margin: 0; font-size: 1.2rem; }
+.cal-nav { display: flex; gap: 6px; }
+.cal-nav .btn { padding: 6px 12px; min-width: 40px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.dow { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 2px 0 6px; }
+.day {
+  position: relative; aspect-ratio: 1 / 1; max-width: 100%; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cell); color: var(--fg);
+  border: 1.5px solid transparent; border-radius: 10px;
+  font-size: .95rem; font-weight: 500; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.day:hover:not(:disabled) { border-color: var(--muted); }
+.day:disabled { color: var(--fg); cursor: default; }
+.day.future:not(.pred) { opacity: .45; }
+.day.pred { background: var(--accent-soft); border: 1.5px dashed var(--accent); }
+.day.period { background: var(--accent); color: var(--accent-ink); border: 1.5px solid var(--accent); }
+.day:disabled.period { color: var(--accent-ink); }
+.day.today { box-shadow: inset 0 0 0 2px var(--info); font-weight: 700; }
+.day.sel { outline: 2px solid var(--fg); outline-offset: 2px; }
+.day.sel:focus-visible { outline: 3px solid var(--info); }
+.pips { position: absolute; bottom: 5px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
+.pips i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.mark { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--info); box-shadow: 0 0 0 1.5px var(--surface); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 0; padding: 0; list-style: none; font-size: .82rem; color: var(--muted); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; flex: none; }
+.sw.p { background: var(--accent); }
+.sw.f { background: var(--accent-soft); border: 1.5px dashed var(--accent); }
+.sw.t { box-shadow: inset 0 0 0 2px var(--info); background: var(--cell); }
+.sw.n { background: var(--info); border-radius: 50%; width: 8px; height: 8px; }
+.disclaimer { margin: 10px 0 0; font-size: .8rem; color: var(--muted); }
+
+/* day panel */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.panel-head h3 { margin: 0; }
+.tag { font-size: .75rem; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--info); color: var(--info); font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+legend, .lbl { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 0; margin-bottom: 8px; display: block; font-weight: 600; }
+.seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 9px 4px; cursor: pointer; border-right: 1px solid var(--line); min-height: 42px; font-size: .92rem; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg button:focus-visible { outline-offset: -3px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: .9rem; min-height: 36px; }
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+textarea { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; resize: vertical; color: var(--fg); }
+textarea::placeholder { color: var(--muted); }
+
+/* stats + history */
+.rows { margin: 0; display: flex; flex-direction: column; }
+.rows div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.rows div:last-child { border-bottom: 0; }
+.rows dt { color: var(--muted); }
+.rows dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.hist li { display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 4rem; align-items: center; gap: 10px; font-size: .88rem; }
+.hist .lab { white-space: nowrap; color: var(--muted); }
+.hist .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.track { height: 10px; background: var(--cell); border-radius: 5px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); border-radius: 5px; }
+
+/* data card */
+.data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+.data-grid p { margin: 0 0 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.msg { min-height: 1.4em; margin: 8px 0 0; font-size: .88rem; color: var(--muted); }
+.check { display: flex; gap: 8px; align-items: baseline; margin: 0 0 6px; }
+.check i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; transform: translateY(-1px); }
+.check.bad i { background: var(--warn); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Local Cycle<small>Period tracking that stays in your browser.</small></div>
+    <span class="pill" id="statusPill"><i></i><span id="statusPillText">Saved on this device only</span></span>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <h2 id="heroTitle"></h2>
+    <p id="heroSub"></p>
+    <button class="btn primary" id="heroBtn" type="button" hidden>Period started today</button>
+  </section>
+
+  <div class="main">
+    <section class="card" aria-label="Calendar">
+      <div class="cal-head">
+        <h3 id="calTitle"></h3>
+        <div class="cal-nav">
+          <button class="btn" id="prevM" type="button" aria-label="Previous month">&#8592;</button>
+          <button class="btn" id="todayM" type="button">Today</button>
+          <button class="btn" id="nextM" type="button" aria-label="Next month">&#8594;</button>
+        </div>
+      </div>
+      <div class="cal" id="dow" aria-hidden="true"></div>
+      <div class="cal" id="grid" role="group" aria-label="Days of the month"></div>
+      <ul class="legend">
+        <li><span class="sw p"></span>Period</li>
+        <li><span class="sw f"></span>Predicted</li>
+        <li><span class="sw t"></span>Today</li>
+        <li><span class="sw n"></span>Has a note or symptoms</li>
+      </ul>
+      <p class="disclaimer">Predictions are rough estimates from your own past cycles. Don't rely on them for birth control.</p>
+    </section>
+
+    <section class="card" id="panel" aria-label="Selected day"></section>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h3>Your numbers</h3>
+      <dl class="rows" id="stats"></dl>
+      <p class="muted small" id="statsNote" style="margin:10px 0 0"></p>
+    </section>
+    <section class="card">
+      <h3>Recent cycles</h3>
+      <ul class="hist" id="hist"></ul>
+      <p class="muted small" id="histNote" style="margin:10px 0 0"></p>
+    </section>
+  </div>
+
+  <section class="card" aria-label="Your data">
+    <h3>Your data</h3>
+    <div class="data-grid">
+      <div>
+        <p>Everything you log is saved in this browser, on this device. There is no account, and this page's code never sends anything over the network.</p>
+        <p class="check" id="storageCheck"><i></i><span id="storageText"></span></p>
+        <p class="muted small" id="countText"></p>
+        <p class="muted small">Clearing your browser's site data, or opening this on another browser or device, starts you from zero. Copy a backup now and then and keep it somewhere safe.</p>
+        <div class="actions">
+          <button class="btn danger" id="eraseBtn" type="button">Erase everything</button>
+        </div>
+      </div>
+      <div>
+        <label class="lbl" for="backup">Backup text</label>
+        <textarea id="backup" rows="6" spellcheck="false" placeholder="Press &quot;Create backup&quot;, then copy it. To restore, paste a backup here and press &quot;Restore from text&quot;."></textarea>
+        <div class="actions">
+          <button class="btn" id="makeBackup" type="button">Create backup</button>
+          <button class="btn" id="copyBackup" type="button">Copy</button>
+          <button class="btn" id="restoreBtn" type="button">Restore from text</button>
+        </div>
+        <p class="msg" id="backupMsg" role="status"></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var KEY = 'localcycle.v1';
+  var SYMPTOMS = ['Cramps', 'Headache', 'Bloating', 'Fatigue', 'Mood swings', 'Spotting', 'Acne', 'Tender chest'];
+  var FLOWS = [['0', 'None'], ['1', 'Light'], ['2', 'Medium'], ['3', 'Heavy']];
+  var store = { days: {} };
+  var storageOK = true;
+  var sel, view;
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function add(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
+  function diff(a, b) { return Math.round((parse(a) - parse(b)) / 864e5); }
+  function today() { return iso(new Date()); }
+  function fmt(s, o) { return parse(s).toLocaleDateString(undefined, o); }
+  var SHORT = { month: 'short', day: 'numeric' };
+  var LONG = { weekday: 'long', month: 'long', day: 'numeric' };
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+  function mean(a) { var t = 0; a.forEach(function (x) { t += x; }); return t / a.length; }
+
+  /* ---------- storage ---------- */
+  function normalize(p) {
+    var out = { days: {} };
+    var t = today();
+    var src = p && typeof p.days === 'object' && p.days ? p.days : {};
+    Object.keys(src).forEach(function (k) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > t) return;
+      var e = src[k] || {};
+      var flow = parseInt(e.flow, 10);
+      if (!(flow >= 0 && flow <= 3)) flow = 0;
+      var syms = Array.isArray(e.symptoms) ? e.symptoms.filter(function (x) { return SYMPTOMS.indexOf(x) > -1; }) : [];
+      var note = typeof e.note === 'string' ? e.note.slice(0, 500) : '';
+      if (flow || syms.length || note) out.days[k] = { flow: flow, symptoms: syms, note: note };
+    });
+    return out;
+  }
+  function load() {
+    try {
+      localStorage.setItem(KEY + '.probe', '1');
+      localStorage.removeItem(KEY + '.probe');
+      var raw = localStorage.getItem(KEY);
+      if (raw) store = normalize(JSON.parse(raw));
+    } catch (e) { storageOK = false; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(store)); storageOK = true; }
+    catch (e) { storageOK = false; }
+    renderStorage();
+  }
+
+  /* ---------- logic ---------- */
+  function analyze() {
+    var t = today();
+    var keys = Object.keys(store.days).filter(function (k) { return store.days[k].flow > 0; }).sort();
+    var periods = [];
+    keys.forEach(function (k) {
+      var last = periods[periods.length - 1];
+      if (last && diff(k, last.end) <= 7) last.end = k;
+      else periods.push({ start: k, end: k });
+    });
+    periods.forEach(function (p) { p.len = diff(p.end, p.start) + 1; });
+    var cycles = [];
+    for (var i = 0; i < periods.length - 1; i++) {
+      cycles.push({ from: periods[i].start, to: periods[i + 1].start, len: diff(periods[i + 1].start, periods[i].start) });
+    }
+    var valid = cycles.filter(function (c) { return c.len >= 15 && c.len <= 60; }).slice(-6);
+    var usedDefault = valid.length === 0;
+    var avgCycle = usedDefault ? 28 : Math.round(mean(valid.map(function (c) { return c.len; })));
+    var done = periods.filter(function (p) { return diff(t, p.end) >= 2; }).slice(-6);
+    var avgPeriod = done.length ? Math.round(mean(done.map(function (p) { return p.len; }))) : 5;
+    avgPeriod = Math.max(1, Math.min(10, avgPeriod));
+    var last = periods.length ? periods[periods.length - 1] : null;
+    var predicted = {};
+    var nextStart = null;
+    if (last) {
+      nextStart = add(last.start, avgCycle);
+      for (var k = 1; k <= 3; k++) {
+        var st = add(last.start, avgCycle * k);
+        for (var d = 0; d < avgPeriod; d++) {
+          var day = add(st, d);
+          if (day >= t && !(store.days[day] && store.days[day].flow > 0)) predicted[day] = true;
+        }
+      }
+    }
+    return { periods: periods, cycles: cycles, avgCycle: avgCycle, avgPeriod: avgPeriod, usedDefault: usedDefault, last: last, predicted: predicted, nextStart: nextStart, doneCount: done.length };
+  }
+
+  /* ---------- edits ---------- */
+  function entry(s) {
+    if (!store.days[s]) store.days[s] = { flow: 0, symptoms: [], note: '' };
+    return store.days[s];
+  }
+  function tidy(s) {
+    var e = store.days[s];
+    if (e && !e.flow && !e.symptoms.length && !e.note) delete store.days[s];
+  }
+  function setFlow(s, n) { entry(s).flow = n; tidy(s); save(); renderAll(); }
+  function toggleSym(s, name) {
+    var e = entry(s), i = e.symptoms.indexOf(name);
+    if (i > -1) e.symptoms.splice(i, 1); else e.symptoms.push(name);
+    tidy(s); save(); renderAll();
+  }
+  function setNote(s, text) { entry(s).note = text.slice(0, 500); tidy(s); save(); renderCal(analyze()); }
+
+  /* ---------- render ---------- */
+  function renderHero(a) {
+    var t = today(), e = store.days[t];
+    var inPeriod = !!(e && e.flow > 0);
+    var title = $('heroTitle'), sub = $('heroSub'), btn = $('heroBtn');
+    btn.hidden = inPeriod;
+    var basis = a.usedDefault
+      ? 'Using a default 28-day cycle until you have logged two periods.'
+      : 'Based on your average cycle of ' + a.avgCycle + ' days.';
+    if (!a.last) {
+      title.textContent = 'Nothing logged yet';
+      sub.textContent = 'Tap a day on the calendar to log your first period day. Predictions start after that.';
+      return;
+    }
+    var cd = diff(t, a.last.start) + 1;
+    if (inPeriod) {
+      title.innerHTML = 'Period day <span class="num">' + cd + '</span>';
+      sub.textContent = 'These usually last about ' + plural(a.avgPeriod, 'day') + '. Next one expected around ' + fmt(a.nextStart, SHORT) + '. ' + basis;
+      return;
+    }
+    var n = diff(a.nextStart, t);
+    if (n > 0) {
+      title.innerHTML = 'Next period in <span class="num">' + n + '</span> ' + (n === 1 ? 'day' : 'days');
+      sub.textContent = 'Expected around ' + fmt(a.nextStart, LONG) + '. You are on cycle day ' + cd + '. ' + basis;
+    } else if (n === 0) {
+      title.innerHTML = 'Expected <span class="num">today</span>';
+      sub.textContent = 'You are on cycle day ' + cd + '. ' + basis;
+    } else {
+      title.innerHTML = '<span class="num">' + (-n) + '</span> ' + (-n === 1 ? 'day' : 'days') + ' past the estimate';
+      sub.textContent = 'Estimates can be off by several days, and that is common. You are on cycle day ' + cd + '. ' + basis;
+    }
+  }
+
+  function dayLabel(s, e, isPred, isToday) {
+    var bits = [fmt(s, { weekday: 'long', month: 'long', day: 'numeric' })];
+    if (e && e.flow) bits.push('period, ' + FLOWS[e.flow][1].toLowerCase() + ' flow');
+    if (isPred) bits.push('predicted period day');
+    if (e && (e.note || e.symptoms.length)) bits.push('has notes');
+    if (isToday) bits.push('today');
+    return bits.join(', ');
+  }
+
+  function renderCal(a) {
+    var grid = $('grid');
+    var hadFocus = grid.contains(document.activeElement);
+    var t = today(), y = view.y, m = view.m;
+    $('calTitle').textContent = new Date(y, m, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    var lead = new Date(y, m, 1).getDay();
+    var dim = new Date(y, m + 1, 0).getDate();
+    var html = '';
+    for (var i = 0; i < lead; i++) html += '<span aria-hidden="true"></span>';
+    for (var d = 1; d <= dim; d++) {
+      var s = iso(new Date(y, m, d));
+      var e = store.days[s];
+      var flow = e ? e.flow : 0;
+      var future = s > t;
+      var isPred = !!a.predicted[s];
+      var cls = 'day';
+      if (flow) cls += ' period';
+      if (isPred && !flow) cls += ' pred';
+      if (future) cls += ' future';
+      if (s === t) cls += ' today';
+      if (s === sel) cls += ' sel';
+      html += '<button type="button" class="' + cls + '" data-d="' + s + '"' + (future ? ' disabled' : '') +
+        ' aria-pressed="' + (s === sel ? 'true' : 'false') + '" aria-label="' + dayLabel(s, e, isPred && !flow, s === t) + '">' + d;
+      if (flow) { html += '<span class="pips" aria-hidden="true">'; for (var p = 0; p < flow; p++) html += '<i></i>'; html += '</span>'; }
+      if (e && (e.note || e.symptoms.length)) html += '<span class="mark" aria-hidden="true"></span>';
+      html += '</button>';
+    }
+    grid.innerHTML = html;
+    if (hadFocus) {
+      var b = grid.querySelector('[data-d="' + sel + '"]');
+      if (b) b.focus();
+    }
+  }
+
+  function renderPanel(a) {
+    var panel = $('panel');
+    var af = document.activeElement;
+    var keep = af && panel.contains(af) ? af.getAttribute('data-key') : null;
+    var t = today();
+    var e = store.days[sel] || { flow: 0, symptoms: [], note: '' };
+    var html = '<div class="panel-head"><h3>' + fmt(sel, { weekday: 'long', month: 'short', day: 'numeric' }) + '</h3>' +
+      (sel === t ? '<span class="tag">Today</span>' : '') + '</div>';
+    html += '<fieldset><legend>Period flow</legend><div class="seg">';
+    FLOWS.forEach(function (f) {
+      html += '<button type="button" data-flow="' + f[0] + '" data-key="flow-' + f[0] + '" aria-pressed="' + (e.flow === +f[0]) + '">' + f[1] + '</button>';
+    });
+    html += '</div></fieldset><fieldset><legend>Symptoms</legend><div class="chips">';
+    SYMPTOMS.forEach(function (s) {
+      html += '<button type="button" class="chip" data-sym="' + s + '" data-key="sym-' + s + '" aria-pressed="' + (e.symptoms.indexOf(s) > -1) + '">' + s + '</button>';
+    });
+    html += '</div></fieldset><div><label class="lbl" for="note">Note</label>' +
+      '<textarea id="note" rows="3" maxlength="500" placeholder="Anything worth remembering about this day"></textarea></div>';
+    panel.innerHTML = html;
+    $('note').value = e.note;
+    if (keep) {
+      var k = panel.querySelector('[data-key="' + keep + '"]');
+      if (k) k.focus();
+    }
+  }
+
+  function renderStats(a) {
+    var rows = [
+      ['Average cycle', a.usedDefault ? '28 days (default)' : plural(a.avgCycle, 'day')],
+      ['Average period', a.doneCount ? plural(a.avgPeriod, 'day') : '5 days (default)'],
+      ['Periods logged', String(a.periods.length)],
+      ['Last period began', a.last ? fmt(a.last.start, { month: 'short', day: 'numeric', year: 'numeric' }) : 'None yet']
+    ];
+    $('stats').innerHTML = rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('');
+    $('statsNote').textContent = a.usedDefault ? 'Defaults are placeholders. They get replaced by your own numbers as you log periods.' : '';
+  }
+
+  function renderHist(a) {
+    var list = a.cycles.slice(-6).reverse();
+    var max = Math.max(45, list.reduce(function (m, c) { return Math.max(m, c.len); }, 0));
+    $('hist').innerHTML = list.map(function (c) {
+      return '<li><span class="lab">' + fmt(c.from, SHORT) + ' → ' + fmt(c.to, SHORT) + '</span>' +
+        '<span class="track" aria-hidden="true"><span class="fill" style="display:block;width:' + Math.round(c.len / max * 100) + '%"></span></span>' +
+        '<span class="val">' + c.len + ' d</span></li>';
+    }).join('');
+    $('histNote').textContent = list.length ? 'Days from the start of one period to the start of the next.' : 'Cycle lengths show up here once you have logged two periods.';
+  }
+
+  function renderStorage() {
+    var pill = $('statusPill');
+    pill.classList.toggle('bad', !storageOK);
+    $('statusPillText').textContent = storageOK ? 'Saved on this device only' : 'Not saving: storage is blocked';
+    var chk = $('storageCheck');
+    chk.classList.toggle('bad', !storageOK);
+    $('storageText').textContent = storageOK
+      ? 'Browser storage is working.'
+      : 'This browser is blocking storage, so entries last only until you close this tab. Copy a backup before you leave.';
+    var n = Object.keys(store.days).length;
+    $('countText').textContent = n ? plural(n, 'day') + ' with entries stored here.' : 'Nothing stored yet.';
+  }
+
+  function renderAll() {
+    var a = analyze();
+    renderHero(a); renderCal(a); renderPanel(a); renderStats(a); renderHist(a); renderStorage();
+  }
+
+  /* ---------- events ---------- */
+  function select(s) {
+    sel = s;
+    var d = parse(s);
+    view = { y: d.getFullYear(), m: d.getMonth() };
+    renderAll();
+  }
+  $('grid').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-d]');
+    if (!b || b.disabled) return;
+    sel = b.getAttribute('data-d');
+    var a = analyze();
+    renderCal(a); renderPanel(a);
+  });
+  $('grid').addEventListener('keydown', function (ev) {
+    var step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[ev.key];
+    if (!step) return;
+    ev.preventDefault();
+    var n = add(sel, step);
+    if (n > today()) return;
+    sel = n;
+    var d = parse(n);
+    view = { y: d.getFullYear(), m: d.getMonth() };
+    var a = analyze();
+    renderCal(a); renderPanel(a);
+    $('grid').querySelector('[data-d="' + sel + '"]').focus();
+  });
+  $('panel').addEventListener('click', function (ev) {
+    var f = ev.target.closest('[data-flow]');
+    if (f) { setFlow(sel, +f.getAttribute('data-flow')); return; }
+    var s = ev.target.closest('[data-sym]');
+    if (s) toggleSym(sel, s.getAttribute('data-sym'));
+  });
+  $('panel').addEventListener('input', function (ev) {
+    if (ev.target.id === 'note') setNote(sel, ev.target.value);
+  });
+  $('prevM').addEventListener('click', function () {
+    view = view.m === 0 ? { y: view.y - 1, m: 11 } : { y: view.y, m: view.m - 1 };
+    renderCal(analyze());
+  });
+  $('nextM').addEventListener('click', function () {
+    view = view.m === 11 ? { y: view.y + 1, m: 0 } : { y: view.y, m: view.m + 1 };
+    renderCal(analyze());
+  });
+  $('todayM').addEventListener('click', function () { select(today()); });
+  $('heroBtn').addEventListener('click', function () {
+    sel = today();
+    entry(sel).flow = 2;
+    save();
+    select(sel);
+  });
+
+  /* two-tap confirm, since the viewer blocks confirm() dialogs */
+  function confirmable(btn, armedLabel, action) {
+    var armed = false, timer, label = btn.textContent;
+    function reset() { armed = false; clearTimeout(timer); btn.textContent = label; btn.classList.remove('armed'); }
+    btn.addEventListener('click', function () {
+      if (!armed) { armed = true; btn.textContent = armedLabel; btn.classList.add('armed'); timer = setTimeout(reset, 4000); return; }
+      reset(); action();
+    });
+  }
+  function say(t) { $('backupMsg').textContent = t; }
+
+  $('makeBackup').addEventListener('click', function () {
+    $('backup').value = JSON.stringify({ app: 'local-cycle', version: 1, days: store.days });
+    say('Backup created. Copy it and keep it somewhere private.');
+  });
+  $('copyBackup').addEventListener('click', function () {
+    var ta = $('backup');
+    if (!ta.value) ta.value = JSON.stringify({ app: 'local-cycle', version: 1, days: store.days });
+    ta.focus(); ta.select();
+    try {
+      navigator.clipboard.writeText(ta.value).then(
+        function () { say('Copied.'); },
+        function () { say('Your browser blocked copying. The text is selected, so copy it by hand.'); }
+      );
+    } catch (e) { say('Your browser blocked copying. The text is selected, so copy it by hand.'); }
+  });
+  confirmable($('restoreBtn'), 'Tap again: replaces current data', function () {
+    var parsed;
+    try { parsed = JSON.parse($('backup').value); } catch (e) { say('That text is not a valid backup.'); return; }
+    if (!parsed || typeof parsed.days !== 'object') { say('That text is not a valid backup.'); return; }
+    store = normalize(parsed);
+    save(); select(today());
+    say('Restored ' + plural(Object.keys(store.days).length, 'day') + '.');
+  });
+  confirmable($('eraseBtn'), 'Tap again to erase for good', function () {
+    store = { days: {} };
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    $('backup').value = '';
+    save(); select(today());
+    say('Everything erased from this browser.');
+  });
+
+  /* ---------- start ---------- */
+  var dow = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  $('dow').innerHTML = dow.map(function (d) { return '<div class="dow">' + d + '</div>'; }).join('');
+  load();
+  select(today());
+})();
+</script>
+
+</body></html>
