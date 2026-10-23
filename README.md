@@ -11,6 +11,8 @@ Period tracking data can act as the starting piece of evidence that prompts auth
 
 <img width="1920" height="1080" alt="wolf" src="https://github.com/user-attachments/assets/d768ce51-5571-42a8-b93a-cedd7f44685b" />
 
+*try the demo [here](https://caitroach.github.io/wolf/)!*
+
 ## this project
 Wolf (Flow backwards... creative, I know) is an open-source alternative to creepy, money-hungry apps that sell your menstrual data to shady brokers. It's a single static HTML file with zero dependencies, zero backend, and no account. Your data is stored in your browser and can be downloaded locally as plain text. 
 
